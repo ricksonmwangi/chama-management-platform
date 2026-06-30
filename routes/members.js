@@ -4,23 +4,32 @@ const router = express.Router();
 
 const memberController = require("../controllers/memberController");
 
-const authMiddleware =
-require("../middleware/authMiddleware");
+const authMiddleware = require("../middleware/authMiddleware");
+const adminMiddleware = require("../middleware/adminMiddleware");
+const auditMiddleware = require("../middleware/auditMiddleware");
 
-const adminMiddleware =
-require("../middleware/adminMiddleware");
+router.get(
+    "/",
+    authMiddleware.verifyToken,
+    adminMiddleware.isAdmin,
+    memberController.getMembers
+);
 
-const auditMiddleware =
-require("../middleware/auditMiddleware");
+router.get(
+    "/:id",
+    authMiddleware.verifyToken,
+    adminMiddleware.isAdmin,
+    memberController.getMemberById
+);
 
-router.get("/", memberController.getMembers);
-router.get("/:id", memberController.getMemberById);
 router.post(
     "/",
     authMiddleware.verifyToken,
     adminMiddleware.isAdmin,
+    auditMiddleware.logAction("Created member"),
     memberController.createMember
 );
+
 router.put(
     "/:id",
     authMiddleware.verifyToken,

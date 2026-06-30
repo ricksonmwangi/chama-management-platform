@@ -1,56 +1,111 @@
 const db = require("../config/db");
 
+// Validate email
+const isValidEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+};
+
+// Validate Kenyan phone numbers
+const isValidPhone = (phone) => {
+    const phoneRegex = /^(?:\+254|254|0)(7\d{8}|1\d{8})$/;
+    return phoneRegex.test(phone);
+};
+
+// Get all members
 exports.getMembers = (req, res) => {
+
     db.query(
         "SELECT * FROM members",
         (err, results) => {
+
             if (err) {
-                return res.status(500).json(err);
+                console.error(err);
+                return res.status(500).json({
+                    message: "Failed to retrieve members."
+                });
             }
 
-            res.json(results);
+            return res.status(200).json(results);
+
         }
     );
+
 };
 
+// Create member
 exports.createMember = (req, res) => {
 
-    if (!req.body) {
+    const {
+        full_name,
+        phone,
+        email,
+        join_date
+    } = req.body;
+
+    if (!full_name || !phone || !email || !join_date) {
         return res.status(400).json({
-            message: "Request body is missing"
+            message: "All fields are required."
         });
     }
 
-    const { full_name, phone, email, join_date } = req.body;
+    if (!isValidEmail(email)) {
+        return res.status(400).json({
+            message: "Invalid email address."
+        });
+    }
 
-    console.log(full_name);
-    console.log(phone);
-    console.log(email);
-    console.log(join_date);
-
-
-    const sql = `
-        INSERT INTO members
-        (full_name, phone, email, join_date)
-        VALUES (?, ?, ?, ?)
-    `;
+    if (!isValidPhone(phone)) {
+        return res.status(400).json({
+            message: "Invalid phone number."
+        });
+    }
 
     db.query(
-        sql,
-        [full_name, phone, email, join_date],
-        (err, result) => {
+        "SELECT id FROM members WHERE email = ?",
+        [email],
+        (err, results) => {
 
             if (err) {
-                return res.status(500).json(err);
+                console.error(err);
+                return res.status(500).json({
+                    message: "Failed to create member."
+                });
             }
 
-            res.json({
-                message: "Member created successfully"
-            });
+            if (results.length > 0) {
+                return res.status(409).json({
+                    message: "Email already exists."
+                });
+            }
+
+            db.query(
+                `INSERT INTO members
+                (full_name, phone, email, join_date)
+                VALUES (?, ?, ?, ?)`,
+                [full_name, phone, email, join_date],
+                (err) => {
+
+                    if (err) {
+                        console.error(err);
+                        return res.status(500).json({
+                            message: "Failed to create member."
+                        });
+                    }
+
+                    return res.status(201).json({
+                        message: "Member created successfully."
+                    });
+
+                }
+            );
+
         }
     );
+
 };
 
+// Get member by ID
 exports.getMemberById = (req, res) => {
 
     const { id } = req.params;
@@ -61,20 +116,26 @@ exports.getMemberById = (req, res) => {
         (err, results) => {
 
             if (err) {
-                return res.status(500).json(err);
+                console.error(err);
+                return res.status(500).json({
+                    message: "Failed to retrieve member."
+                });
             }
 
             if (results.length === 0) {
                 return res.status(404).json({
-                    message: "Member not found"
+                    message: "Member not found."
                 });
             }
 
-            res.json(results[0]);
+            return res.status(200).json(results[0]);
+
         }
     );
+
 };
 
+// Update member
 exports.updateMember = (req, res) => {
 
     const { id } = req.params;
@@ -85,34 +146,75 @@ exports.updateMember = (req, res) => {
         email
     } = req.body;
 
-    const sql = `
-        UPDATE members
-        SET full_name = ?, phone = ?, email = ?
-        WHERE id = ?
-    `;
+    if (!full_name || !phone || !email) {
+        return res.status(400).json({
+            message: "Full name, phone and email are required."
+        });
+    }
+
+    if (!isValidEmail(email)) {
+        return res.status(400).json({
+            message: "Invalid email address."
+        });
+    }
+
+    if (!isValidPhone(phone)) {
+        return res.status(400).json({
+            message: "Invalid phone number."
+        });
+    }
 
     db.query(
-        sql,
-        [full_name, phone, email, id],
-        (err, result) => {
+        "SELECT id FROM members WHERE email = ? AND id != ?",
+        [email, id],
+        (err, results) => {
 
             if (err) {
-                return res.status(500).json(err);
-            }
-
-            if (result.affectedRows === 0) {
-                return res.status(404).json({
-                    message: "Member not found"
+                console.error(err);
+                return res.status(500).json({
+                    message: "Failed to update member."
                 });
             }
 
-            res.json({
-                message: "Member updated successfully"
-            });
+            if (results.length > 0) {
+                return res.status(409).json({
+                    message: "Email already exists."
+                });
+            }
+
+            db.query(
+                `UPDATE members
+                 SET full_name = ?, phone = ?, email = ?
+                 WHERE id = ?`,
+                [full_name, phone, email, id],
+                (err, result) => {
+
+                    if (err) {
+                        console.error(err);
+                        return res.status(500).json({
+                            message: "Failed to update member."
+                        });
+                    }
+
+                    if (result.affectedRows === 0) {
+                        return res.status(404).json({
+                            message: "Member not found."
+                        });
+                    }
+
+                    return res.status(200).json({
+                        message: "Member updated successfully."
+                    });
+
+                }
+            );
+
         }
     );
+
 };
 
+// Delete member
 exports.deleteMember = (req, res) => {
 
     const { id } = req.params;
@@ -123,18 +225,23 @@ exports.deleteMember = (req, res) => {
         (err, result) => {
 
             if (err) {
-                return res.status(500).json(err);
+                console.error(err);
+                return res.status(500).json({
+                    message: "Failed to delete member."
+                });
             }
 
             if (result.affectedRows === 0) {
                 return res.status(404).json({
-                    message: "Member not found"
+                    message: "Member not found."
                 });
             }
 
-            res.json({
-                message: "Member deleted successfully"
+            return res.status(200).json({
+                message: "Member deleted successfully."
             });
+
         }
     );
+
 };
