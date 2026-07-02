@@ -1,6 +1,51 @@
 const axios = require("axios");
 const db = require("../config/db");
 
+const { phone, amount } = req.body;
+if (!phone || amount === undefined) {
+    return res.status(400).json({
+        message: "Phone number and amount are required."
+    });
+}
+
+const paymentAmount = Number(amount);
+
+if (isNaN(paymentAmount) || paymentAmount <= 0) {
+    return res.status(400).json({
+        message: "Amount must be greater than zero."
+    });
+}
+
+const phoneRegex = /^2547\d{8}$/;
+
+if (!phoneRegex.test(phone)) {
+    return res.status(400).json({
+        message: "Phone number must be in the format 2547XXXXXXXX."
+    });
+}
+
+if (!phone || amount === undefined) {
+    return res.status(400).json({
+        message: "Phone number and amount are required."
+    });
+}
+
+const paymentAmount = Number(amount);
+
+if (isNaN(paymentAmount) || paymentAmount <= 0) {
+    return res.status(400).json({
+        message: "Amount must be greater than zero."
+    });
+}
+
+const phoneRegex = /^2547\d{8}$/;
+
+if (!phoneRegex.test(phone)) {
+    return res.status(400).json({
+        message: "Phone number must be in the format 2547XXXXXXXX."
+    });
+}
+
 exports.getAccessToken = async (req, res) => {
 
     try {
@@ -14,7 +59,8 @@ exports.getAccessToken = async (req, res) => {
             {
                 headers: {
                     Authorization: `Basic ${auth}`
-                }
+                },
+                timeout: 30000
             }
         );
 
@@ -51,6 +97,18 @@ exports.callback = async (req, res) => {
             "ResultCode:",
             callback.ResultCode
         );
+        if (callback.ResultCode != 0) {
+
+            console.log("Payment failed.");
+            console.log("Result Code:", callback.ResultCode);
+            console.log("Reason:", callback.ResultDesc);
+
+        return res.json({
+            ResultCode: 0,
+            ResultDesc: "Accepted"
+    });
+
+}
 
         if (callback.ResultCode == 0) {
 
@@ -61,13 +119,7 @@ exports.callback = async (req, res) => {
             let phone = null;
             let receipt = null;
 
-            items.forEach(item => {
-                if (callback.ResultCode != 0) {
-                   console.log(
-                   "Payment failed:",
-                   callback.ResultDesc
-                          );
-                }                
+            items.forEach(item => {  
 
                 if (item.Name === "Amount") {
                     amount = item.Value;
@@ -92,31 +144,46 @@ exports.callback = async (req, res) => {
                     callback.CheckoutRequestID
             });
 
-            db.query(
-                `INSERT INTO mpesa_transactions
-                (phone, amount, receipt_number, checkout_request_id)
-                VALUES (?, ?, ?, ?)`,
-                [
-                    phone,
-                    amount,
-                    receipt,
-                    callback.CheckoutRequestID
-                ],
-                (err, result) => {
+           // Check if this callback has already been processed
+db.query(
+    "SELECT id FROM mpesa_transactions WHERE checkout_request_id = ?",
+    [callback.CheckoutRequestID],
+    (err, results) => {
 
-                    if (err) {
-                        console.error(
-                            "DB ERROR:",
-                            err
-                        );
-                    } else {
-                        console.log(
-                            "Transaction saved successfully"
-                        );
-                    }
+        if (err) {
+            console.error("DB ERROR:", err);
+            return;
+        }
 
+        if (results.length > 0) {
+            console.log("Duplicate callback ignored.");
+            return;
+        }
+
+        // Save transaction
+        db.query(
+            `INSERT INTO mpesa_transactions
+            (phone, amount, receipt_number, checkout_request_id)
+            VALUES (?, ?, ?, ?)`,
+            [
+                phone,
+                amount,
+                receipt,
+                callback.CheckoutRequestID
+            ],
+            (err) => {
+
+                if (err) {
+                    console.error("DB ERROR:", err);
+                } else {
+                    console.log("Transaction saved successfully.");
                 }
-            );
+
+            }
+        );
+
+    }
+);
 
         }
 
@@ -142,9 +209,7 @@ exports.callback = async (req, res) => {
 };
 
 exports.stkPush = async (req, res) => {
-
     try {
-
         const { phone, amount } = req.body;
 
         const auth = Buffer.from(
@@ -152,19 +217,18 @@ exports.stkPush = async (req, res) => {
         ).toString("base64");
 
         const tokenResponse = await axios.get(
-            "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
-            {
-                headers: {
-                    Authorization: `Basic ${auth}`
-                }
-            }
-        );
+    "...",
+    {
+        headers: {
+            Authorization: `Basic ${auth}`
+        },
+        timeout: 30000
+    }
+);
 
-        const accessToken =
-            tokenResponse.data.access_token;
+        const accessToken = tokenResponse.data.access_token;
 
-        const timestamp =
-            new Date()
+        const timestamp = new Date()
             .toISOString()
             .replace(/[-:TZ.]/g, "")
             .slice(0, 14);
@@ -178,57 +242,32 @@ exports.stkPush = async (req, res) => {
         const response = await axios.post(
             "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
             {
-                BusinessShortCode:
-                    process.env.MPESA_SHORTCODE,
-
-                Password:
-                    password,
-
-                Timestamp:
-                    timestamp,
-
-                TransactionType:
-                    "CustomerPayBillOnline",
-
-                Amount:
-                    amount,
-
-                PartyA:
-                    phone,
-
-                PartyB:
-                    process.env.MPESA_SHORTCODE,
-
-                PhoneNumber:
-                    phone,
-
-                CallBackURL:
-                    "https://stamp-overbid-barrier.ngrok-free.dev/mpesa/callback",
-
-                AccountReference:
-                    "CHAMA",
-
-                TransactionDesc:
-                    "Contribution Payment"
+                BusinessShortCode: process.env.MPESA_SHORTCODE,
+                Password: password,
+                Timestamp: timestamp,
+                TransactionType: "CustomerPayBillOnline",
+                Amount: paymentAmount,
+                PartyA: phone,
+                PartyB: process.env.MPESA_SHORTCODE,
+                PhoneNumber: phone,
+                CallBackURL: process.env.MPESA_CALLBACK_URL,
+                AccountReference: "CHAMA",
+                TransactionDesc: "Contribution Payment"
             },
             {
                 headers: {
-                    Authorization:
-                        `Bearer ${accessToken}`
-                }
+                    Authorization: `Bearer ${accessToken}`
+                },
+                 timeout: 30000
             }
         );
 
         res.json(response.data);
-
     } catch (error) {
+        console.error("STK PUSH ERROR:", error.response?.data || error.message);
 
-        console.error(error.response?.data || error);
-
-        res.status(500).json(
-            error.response?.data || error.message
-        );
-
+        return res.status(500).json({
+            message: "Failed to initiate M-Pesa payment."
+        });
     }
-
 };
