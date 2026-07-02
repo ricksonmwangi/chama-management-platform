@@ -11,10 +11,14 @@ require("../middleware/authMiddleware");
 const adminMiddleware =
 require("../middleware/adminMiddleware");
 
+const auditMiddleware =
+require("../middleware/auditMiddleware");
+
 router.post(
     "/",
     authMiddleware.verifyToken,
     adminMiddleware.isAdmin,
+    auditMiddleware.logAction("Recorded contribution"),
     contributionController.createContribution
 );
 
@@ -28,12 +32,14 @@ router.get(
 router.get(
     "/member/:id",
     authMiddleware.verifyToken,
+    adminMiddleware.isAdmin,
     contributionController.getMemberContributions
 );
 
 router.get(
     "/member/:id/summary",
     authMiddleware.verifyToken,
+    adminMiddleware.isAdmin,
     contributionController.getMemberContributionSummary
 );
 

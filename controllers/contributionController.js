@@ -1,5 +1,19 @@
 const db = require("../config/db");
 
+const isValidAmount = (amount) => {
+    return !isNaN(amount) && Number(amount) > 0;
+};
+
+const isValidContributionDate = (date) => {
+    const contributionDate = new Date(date);
+    const today = new Date();
+
+    contributionDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    return contributionDate <= today;
+};
+
 exports.createContribution = (req, res) => {
 
     const {
@@ -8,45 +22,78 @@ exports.createContribution = (req, res) => {
         contribution_date
     } = req.body;
 
-    if (
-        !member_id ||
-        !amount ||
-        !contribution_date
-    ) {
+    if (!member_id || !amount || !contribution_date) {
         return res.status(400).json({
-            message: "All fields are required"
+            message: "All fields are required."
         });
     }
 
-    const sql = `
-        INSERT INTO contributions
-        (
-            member_id,
-            amount,
-            contribution_date
-        )
-        VALUES (?, ?, ?)
-    `;
+    if (!isValidAmount(amount)) {
+        return res.status(400).json({
+            message: "Contribution amount must be greater than zero."
+        });
+    }
+
+    if (!isValidContributionDate(contribution_date)) {
+        return res.status(400).json({
+            message: "Contribution date cannot be in the future."
+        });
+    }
 
     db.query(
-        sql,
-        [
-            member_id,
-            amount,
-            contribution_date
-        ],
-        (err, result) => {
+        "SELECT id FROM members WHERE id = ?",
+        [member_id],
+        (err, memberResults) => {
 
             if (err) {
-                return res.status(500).json(err);
+                console.error(err);
+                return res.status(500).json({
+                    message: "Failed to record contribution."
+                });
             }
 
-            res.json({
-                message:
-                "Contribution recorded successfully"
-            });
+            if (memberResults.length === 0) {
+                return res.status(404).json({
+                    message: "Member not found."
+                });
+            }
+
+            const sql = `
+                INSERT INTO contributions
+                (
+                    member_id,
+                    amount,
+                    contribution_date
+                )
+                VALUES (?, ?, ?)
+            `;
+
+            db.query(
+                sql,
+                [
+                    member_id,
+                    amount,
+                    contribution_date
+                ],
+                (err) => {
+
+                    if (err) {
+                        console.error(err);
+                        return res.status(500).json({
+                            message: "Failed to record contribution."
+                        });
+                    }
+
+                    return res.status(201).json({
+                        message: "Contribution recorded successfully."
+                    });
+
+                }
+            );
+
         }
     );
+
 };
 
 exports.getContributions = (req, res) => {
@@ -68,29 +115,35 @@ exports.getContributions = (req, res) => {
     db.query(sql, (err, results) => {
 
         if (err) {
-            return res.status(500).json(err);
+            console.error(err);
+            return res.status(500).json({
+                message: "Failed to retrieve contributions."
+            });
         }
 
-        res.json(results);
+        return res.status(200).json(results);
+
     });
+
 };
 
+// Get contributions for one member
 exports.getMemberContributions = (req, res) => {
 
     const memberId = req.params.id;
 
-   const sql = `
-    SELECT
-        members.full_name,
-        contributions.id,
-        contributions.amount,
-        contributions.contribution_date
-    FROM contributions
-    INNER JOIN members
-        ON contributions.member_id = members.id
-    WHERE members.id = ?
-    ORDER BY contribution_date DESC
-`;
+    const sql = `
+        SELECT
+            members.full_name,
+            contributions.id,
+            contributions.amount,
+            contributions.contribution_date
+        FROM contributions
+        INNER JOIN members
+            ON contributions.member_id = members.id
+        WHERE members.id = ?
+        ORDER BY contribution_date DESC
+    `;
 
     db.query(
         sql,
@@ -98,12 +151,17 @@ exports.getMemberContributions = (req, res) => {
         (err, results) => {
 
             if (err) {
-                return res.status(500).json(err);
+                console.error(err);
+                return res.status(500).json({
+                    message: "Failed to retrieve contributions."
+                });
             }
 
-            res.json(results);
+            return res.status(200).json(results);
+
         }
     );
+
 };
 
 exports.getMemberContributionSummary = (req, res) => {
@@ -129,16 +187,21 @@ exports.getMemberContributionSummary = (req, res) => {
         (err, results) => {
 
             if (err) {
-                return res.status(500).json(err);
+                console.error(err);
+                return res.status(500).json({
+                    message: "Failed to retrieve contribution summary."
+                });
             }
 
             if (results.length === 0) {
                 return res.status(404).json({
-                    message: "Member not found"
+                    message: "Member not found."
                 });
             }
 
-            res.json(results[0]);
+            return res.status(200).json(results[0]);
+
         }
     );
+
 };
