@@ -1,15 +1,27 @@
 {
   "name": "chama-system",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "description": "Chama Management Platform Backend API",
+  "main": "server.js",
   "type": "commonjs",
+  "author": "Rickson Mwangi",
+  "license": "ISC",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "echo \"No tests configured\""
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "mysql",
+    "jwt",
+    "mpesa",
+    "chama"
+  ],
   "dependencies": {
     "axios": "^1.18.1",
     "bcrypt": "^6.0.0",
