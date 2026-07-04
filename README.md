@@ -247,7 +247,7 @@ Software Developer
 
 GitHub: https://github.com/ricksonmwangi
 
-Email: your.email@example.com
+Email: ricksonmwangi29@gmail.com
 
 ---
 
