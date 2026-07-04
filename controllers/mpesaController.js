@@ -1,7 +1,11 @@
 const axios = require("axios");
 const db = require("../config/db");
 
-// Get M-Pesa Access Token
+/*
+|--------------------------------------------------------------------------
+| Get M-Pesa Access Token
+|--------------------------------------------------------------------------
+*/
 exports.getAccessToken = async (req, res) => {
 
     try {
@@ -24,7 +28,10 @@ exports.getAccessToken = async (req, res) => {
 
     } catch (error) {
 
-        console.error("ACCESS TOKEN ERROR:", error.response?.data || error.message);
+        console.error(
+            "ACCESS TOKEN ERROR:",
+            error.response?.data || error.message
+        );
 
         return res.status(500).json({
             message: "Failed to get access token."
@@ -34,34 +41,22 @@ exports.getAccessToken = async (req, res) => {
 
 };
 
-// M-Pesa Callback
+
+/*
+|--------------------------------------------------------------------------
+| M-Pesa Callback
+|--------------------------------------------------------------------------
+*/
 exports.callback = async (req, res) => {
 
     try {
 
-        console.log(
-            "FULL CALLBACK:",
-            JSON.stringify(req.body, null, 2)
-        );
-
         const callback = req.body.Body.stkCallback;
 
-        console.log(
-            "Callback:",
-            JSON.stringify(callback, null, 2)
-        );
+        // Payment failed
+        if (callback.ResultCode !== 0) {
 
-        console.log(
-            "ResultCode:",
-            callback.ResultCode
-        );
-
-        // Handle failed payments
-        if (callback.ResultCode != 0) {
-
-            console.log("Payment failed.");
-            console.log("Result Code:", callback.ResultCode);
-            console.log("Reason:", callback.ResultDesc);
+            console.log("Payment failed:", callback.ResultDesc);
 
             return res.json({
                 ResultCode: 0,
@@ -82,21 +77,14 @@ exports.callback = async (req, res) => {
                 amount = item.Value;
             }
 
-            if (item.Name === "MpesaReceiptNumber") {
-                receipt = item.Value;
-            }
-
             if (item.Name === "PhoneNumber") {
                 phone = item.Value;
             }
 
-        });
+            if (item.Name === "MpesaReceiptNumber") {
+                receipt = item.Value;
+            }
 
-        console.log({
-            phone,
-            amount,
-            receipt,
-            checkoutRequestID: callback.CheckoutRequestID
         });
 
         // Prevent duplicate callbacks
@@ -106,7 +94,7 @@ exports.callback = async (req, res) => {
             (err, results) => {
 
                 if (err) {
-                    console.error("DB ERROR:", err);
+                    console.error(err);
                     return;
                 }
 
@@ -117,7 +105,12 @@ exports.callback = async (req, res) => {
 
                 db.query(
                     `INSERT INTO mpesa_transactions
-                    (phone, amount, receipt_number, checkout_request_id)
+                    (
+                        phone,
+                        amount,
+                        receipt_number,
+                        checkout_request_id
+                    )
                     VALUES (?, ?, ?, ?)`,
                     [
                         phone,
@@ -128,7 +121,7 @@ exports.callback = async (req, res) => {
                     (err) => {
 
                         if (err) {
-                            console.error("DB ERROR:", err);
+                            console.error(err);
                         } else {
                             console.log("Transaction saved successfully.");
                         }
@@ -157,7 +150,12 @@ exports.callback = async (req, res) => {
 
 };
 
-// Initiate STK Push
+
+/*
+|--------------------------------------------------------------------------
+| Initiate STK Push
+|--------------------------------------------------------------------------
+*/
 exports.stkPush = async (req, res) => {
 
     try {
@@ -166,28 +164,34 @@ exports.stkPush = async (req, res) => {
 
         // Validation
         if (!phone || amount === undefined) {
+
             return res.status(400).json({
                 message: "Phone number and amount are required."
             });
+
         }
 
         const paymentAmount = Number(amount);
 
         if (isNaN(paymentAmount) || paymentAmount <= 0) {
+
             return res.status(400).json({
                 message: "Amount must be greater than zero."
             });
+
         }
 
         const phoneRegex = /^2547\d{8}$/;
 
         if (!phoneRegex.test(phone)) {
+
             return res.status(400).json({
                 message: "Phone number must be in the format 2547XXXXXXXX."
             });
+
         }
 
-        // Generate Access Token
+        // Generate OAuth Access Token
         const auth = Buffer.from(
             `${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`
         ).toString("base64");
@@ -204,11 +208,24 @@ exports.stkPush = async (req, res) => {
 
         const accessToken = tokenResponse.data.access_token;
 
+        if (!accessToken) {
+
+            return res.status(500).json({
+                message: "Failed to retrieve access token."
+            });
+
+        }
+
         // Generate Timestamp
-        const timestamp = new Date()
-            .toISOString()
-            .replace(/[-:TZ.]/g, "")
-            .slice(0, 14);
+        const now = new Date();
+
+        const timestamp =
+            now.getFullYear().toString() +
+            String(now.getMonth() + 1).padStart(2, "0") +
+            String(now.getDate()).padStart(2, "0") +
+            String(now.getHours()).padStart(2, "0") +
+            String(now.getMinutes()).padStart(2, "0") +
+            String(now.getSeconds()).padStart(2, "0");
 
         // Generate Password
         const password = Buffer.from(
@@ -217,7 +234,7 @@ exports.stkPush = async (req, res) => {
             timestamp
         ).toString("base64");
 
-        // STK Push
+        // STK Push Request
         const response = await axios.post(
             "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
             {
@@ -235,7 +252,8 @@ exports.stkPush = async (req, res) => {
             },
             {
                 headers: {
-                    Authorization: `Bearer ${accessToken}`
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": "application/json"
                 },
                 timeout: 30000
             }
