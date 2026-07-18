@@ -1,79 +1,45 @@
+require("dotenv").config();
+
 const express = require("express");
-const cors = require("cors");
 const helmet = require("helmet");
+const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 
-require("dotenv").config();
-require("./config/db");
+require("./config/db"); // establishes the pool + fails fast if DB is unreachable
 
-const memberRoutes = require("./routes/members");
 const authRoutes = require("./routes/auth");
+const memberRoutes = require("./routes/members");
 const contributionRoutes = require("./routes/contributions");
 const loanRoutes = require("./routes/loans");
 const repaymentRoutes = require("./routes/repayments");
 const dashboardRoutes = require("./routes/dashboard");
 const meetingRoutes = require("./routes/meetings");
-const settingsRoutes = require("./routes/settings");
 const auditRoutes = require("./routes/audit");
 const mpesaRoutes = require("./routes/mpesa");
+const settingsRoutes = require("./routes/settings");
 
 const app = express();
-
-/*
-|--------------------------------------------------------------------------
-| Trust Proxy
-|--------------------------------------------------------------------------
-*/
-
-app.set("trust proxy", 1);
-
-/*
-|--------------------------------------------------------------------------
-| Security Middleware
-|--------------------------------------------------------------------------
-*/
 
 app.use(helmet());
 
 const corsOptions = process.env.CLIENT_URL
     ? { origin: process.env.CLIENT_URL }
     : {};
-
 app.use(cors(corsOptions));
 
 app.use(express.json());
 
-/*
-|--------------------------------------------------------------------------
-| Rate Limiting
-|--------------------------------------------------------------------------
-*/
-
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: {
-        message: "Too many requests. Please try again later."
-    }
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false
 });
-
 app.use(limiter);
 
-/*
-|--------------------------------------------------------------------------
-| Home Route
-|--------------------------------------------------------------------------
-*/
-
 app.get("/", (req, res) => {
-    res.send("Chama API Running");
+    res.json({ message: "Genje Group API is running." });
 });
-
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-*/
 
 app.use("/auth", authRoutes);
 app.use("/members", memberRoutes);
@@ -82,51 +48,25 @@ app.use("/loans", loanRoutes);
 app.use("/repayments", repaymentRoutes);
 app.use("/dashboard", dashboardRoutes);
 app.use("/meetings", meetingRoutes);
-app.use("/settings", settingsRoutes);
 app.use("/audit", auditRoutes);
 app.use("/mpesa", mpesaRoutes);
+app.use("/settings", settingsRoutes);
 
-/*
-|--------------------------------------------------------------------------
-| Error Handler
-|--------------------------------------------------------------------------
-*/
-
+// Central error handler (for errors passed via next(err))
 app.use((err, req, res, next) => {
-
-    console.error(err);
-
-    return res.status(err.status || 500).json({
-        message: err.message || "Internal Server Error"
-    });
-
+    console.error(err.stack);
+    res.status(500).json({ message: "Internal server error." });
 });
 
-/*
-|--------------------------------------------------------------------------
-| 404 Handler
-|--------------------------------------------------------------------------
-*/
-
+// 404 fallback
 app.use((req, res) => {
-
-    return res.status(404).json({
-        message: "Route not found"
-    });
-
+    res.status(404).json({ message: "Route not found." });
 });
-
-/*
-|--------------------------------------------------------------------------
-| Start Server
-|--------------------------------------------------------------------------
-*/
 
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
-
     console.log(`Server running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-
+    console.log(`M-Pesa environment: ${process.env.MPESA_ENV === "production" ? "production" : "sandbox"}`);
+    console.log(`M-Pesa callback URL configured as: ${process.env.MPESA_CALLBACK_URL || "(not set!)"}`);
 });
