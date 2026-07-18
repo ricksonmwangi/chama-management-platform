@@ -4,9 +4,7 @@ exports.logAction = (action) => {
 
     return (req, res, next) => {
 
-        if (!action) {
-            return next();
-        }
+        if (!action) return next();
 
         const userId = req.user?.id || null;
 
@@ -14,13 +12,10 @@ exports.logAction = (action) => {
             "INSERT INTO audit_logs (user_id, action) VALUES (?, ?)",
             [userId, action],
             (err) => {
-                if (err) {
-                    console.error("Audit log failed:", err.message);
-                }
+                if (err) console.error("Audit log failed:", err.message);
             }
         );
 
-        // Continue immediately without waiting
         next();
 
     };
