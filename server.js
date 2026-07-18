@@ -13,6 +13,7 @@ const loanRoutes = require("./routes/loans");
 const repaymentRoutes = require("./routes/repayments");
 const dashboardRoutes = require("./routes/dashboard");
 const meetingRoutes = require("./routes/meetings");
+const settingsRoutes = require("./routes/settings");
 const auditRoutes = require("./routes/audit");
 const mpesaRoutes = require("./routes/mpesa");
 
@@ -81,6 +82,7 @@ app.use("/loans", loanRoutes);
 app.use("/repayments", repaymentRoutes);
 app.use("/dashboard", dashboardRoutes);
 app.use("/meetings", meetingRoutes);
+app.use("/settings", settingsRoutes);
 app.use("/audit", auditRoutes);
 app.use("/mpesa", mpesaRoutes);
 
