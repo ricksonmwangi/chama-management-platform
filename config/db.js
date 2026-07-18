@@ -12,20 +12,15 @@ const db = mysql.createPool({
     queueLimit: 0
 });
 
-// Test database connection
 db.getConnection((err, connection) => {
 
     if (err) {
-
         console.error("Database connection failed:");
         console.error(err.message);
-
         process.exit(1);
-
     }
 
     console.log(`Database connected: ${process.env.DB_NAME}`);
-
     connection.release();
 
 });
