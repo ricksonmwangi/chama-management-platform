@@ -12,6 +12,10 @@ const db = mysql.createPool({
     connectionLimit: 10,
     queueLimit: 0
 });
+console.log("DB Host:", process.env.DB_HOST);
+console.log("DB Port:", process.env.DB_PORT);
+console.log("DB Name:", process.env.DB_NAME);
+console.log("DB User:", process.env.DB_USER);
 
 db.getConnection((err, connection) => {
 
