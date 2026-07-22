@@ -87,28 +87,50 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: flex;
   padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
 }
-.bottom-tabbar button {
+/* Tab items are <NavLink> (renders <a>) except "More" which is a <button> —
+   both need identical treatment, or the <a> tabs render as unstyled bare
+   links (this was a real bug: only "More" ever looked like a tab). */
+.bottom-tabbar a, .bottom-tabbar button {
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
-  background: none; border: none; color: #8b958d; padding: 6px 2px; font-size: 10px; font-weight: 600; border-radius: 10px;
+  background: none; border: none; color: #8b958d; padding: 6px 2px; font-size: 10px; font-weight: 600;
+  border-radius: 10px; text-decoration: none; -webkit-tap-highlight-color: transparent;
 }
-.bottom-tabbar button svg { width: 19px; height: 19px; }
-.bottom-tabbar button.active { color: #fff; }
-.bottom-tabbar button.active svg { color: var(--gold); }
+.bottom-tabbar a svg, .bottom-tabbar button svg { width: 19px; height: 19px; }
+.bottom-tabbar a.active, .bottom-tabbar button.active { color: #fff; }
+.bottom-tabbar a.active svg, .bottom-tabbar button.active svg { color: var(--gold); }
 
 .more-sheet { display: none; position: fixed; inset: 0; z-index: 60; background: rgba(20,35,28,0.5); }
 .more-sheet.shown { display: block; }
 .more-sheet-panel {
   position: absolute; bottom: 0; left: 0; right: 0; background: var(--paper-raised);
-  border-radius: 18px 18px 0 0; padding: 8px 8px calc(20px + env(safe-area-inset-bottom));
+  border-radius: 18px 18px 0 0; padding: 8px 14px calc(20px + env(safe-area-inset-bottom));
   max-height: 70vh; overflow-y: auto;
 }
-.more-sheet-handle { width: 36px; height: 4px; background: var(--line); border-radius: 99px; margin: 10px auto 12px; }
+.more-sheet-handle { width: 36px; height: 4px; background: var(--line); border-radius: 99px; margin: 10px auto 14px; }
+
+.more-sheet-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 6px;
+}
+.more-sheet-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-m);
+  padding: 14px 6px; font-size: 12px; font-weight: 600; color: var(--ink); text-align: center;
+}
+.more-sheet-tile:active { background: var(--forest-tint); border-color: var(--forest); }
+.more-sheet-tile-icon {
+  width: 38px; height: 38px; border-radius: 50%; background: var(--forest-tint);
+  color: var(--forest-deep); display: flex; align-items: center; justify-content: center;
+}
+.more-sheet-tile-icon svg { width: 18px; height: 18px; }
+
 .more-sheet-item {
   display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 14px; background: none; border: none;
   font-size: 14.5px; font-weight: 500; color: var(--ink); border-radius: var(--radius-m);
 }
 .more-sheet-item:hover { background: var(--paper); }
 .more-sheet-item svg { width: 19px; height: 19px; color: var(--slate); }
+.more-sheet-signout { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 16px; color: var(--rust); }
+.more-sheet-signout svg { color: var(--rust); }
 
 /* ============================= BUTTONS ============================= */
 .btn {
